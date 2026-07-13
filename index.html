@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WoT GeoGuessr</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body data-screen="landing">
+
+  <!-- Top bar / HUD -->
+  <header class="hud">
+    <div class="hud__brand">
+      <span class="hud__mark">◈</span>
+      <span class="hud__title">WoT<span>Guessr</span></span>
+    </div>
+    <div class="hud__stats">
+      <div class="hud__stat">
+        <span class="hud__label">Round</span>
+        <span class="hud__value" id="hud-round">1 / 5</span>
+      </div>
+      <div class="hud__stat">
+        <span class="hud__label">Score</span>
+        <span class="hud__value" id="hud-score">0</span>
+      </div>
+      <button class="btn btn--ghost btn--sm" id="new-game" type="button">New game</button>
+    </div>
+  </header>
+
+  <main class="stage-wrap">
+
+    <!-- ============ LANDING ============ -->
+    <section class="screen screen--landing" data-for="landing">
+      <div class="landing">
+        <h1 class="landing__title">Which map is this?</h1>
+        <p class="landing__lead">
+          A GeoGuessr for <strong>World of Tanks</strong>. You get a scene from
+          somewhere on one of six maps. Guess the map — and if you're right,
+          pin the exact spot. The closer your pin, the higher your score.
+        </p>
+        <ol class="landing__steps">
+          <li><span>1</span> Study the scene</li>
+          <li><span>2</span> Pick the map</li>
+          <li><span>3</span> Drop your marker</li>
+        </ol>
+        <button class="btn btn--primary btn--lg" id="start-game" type="button">Start game</button>
+        <p class="landing__note">6 maps · 5 rounds · currently using placeholder scenery</p>
+      </div>
+    </section>
+
+    <!-- ============ GUESS (scenery + map picker) ============ -->
+    <section class="screen screen--guess" data-for="guess">
+      <div class="guess">
+        <figure class="scenery">
+          <div class="scenery__image" id="scenery-image"></div>
+          <figcaption class="scenery__tag" id="scenery-dummy-tag">
+            Placeholder scenery · real photos coming later
+          </figcaption>
+        </figure>
+
+        <div class="picker">
+          <h2 class="picker__title">Which map is this scene from?</h2>
+          <div class="map-grid" id="map-grid"><!-- map cards injected here --></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PINPOINT ============ -->
+    <section class="screen screen--pinpoint" data-for="pinpoint">
+      <div class="pinpoint">
+        <h2 class="pinpoint__title" id="pinpoint-title">Where on the map?</h2>
+        <p class="pinpoint__hint">Click the map to drop your marker where you think the scene was taken.</p>
+        <div class="map-stage" id="pinpoint-stage">
+          <div class="map-stage__img" id="pinpoint-map"></div>
+          <div class="marker marker--guess" id="pinpoint-marker" hidden></div>
+        </div>
+        <button class="btn btn--primary btn--lg" id="submit-guess" type="button" disabled>Submit guess</button>
+      </div>
+    </section>
+
+    <!-- ============ RESULT ============ -->
+    <section class="screen screen--result" data-for="result">
+      <div class="result">
+        <div class="map-stage map-stage--static" id="result-stage">
+          <div class="map-stage__img" id="result-map"></div>
+          <svg class="map-stage__line" id="result-line" viewBox="0 0 100 100" preserveAspectRatio="none" hidden>
+            <line x1="0" y1="0" x2="0" y2="0" />
+          </svg>
+          <div class="marker marker--guess" id="guess-marker" hidden></div>
+          <div class="marker marker--actual" id="actual-marker"></div>
+        </div>
+
+        <aside class="result__panel">
+          <h2 class="result__headline" id="result-headline">Result</h2>
+          <p class="result__detail" id="result-detail"></p>
+          <div class="result__score">
+            <span id="result-score">+0</span>
+            <small id="result-score-max">/ 5000</small>
+          </div>
+          <div class="result__legend">
+            <span class="legend legend--guess">Your guess</span>
+            <span class="legend legend--actual">Actual spot</span>
+          </div>
+          <button class="btn btn--primary btn--lg" id="next-round" type="button">Next round</button>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ============ GAME OVER ============ -->
+    <section class="screen screen--gameover" data-for="gameover">
+      <div class="gameover">
+        <h2 class="gameover__title">Game over</h2>
+        <div class="gameover__score">
+          <span id="final-score">0</span><small id="final-score-max">/ 25000</small>
+        </div>
+        <div class="breakdown" id="breakdown"><!-- rows injected --></div>
+        <button class="btn btn--primary btn--lg" id="play-again" type="button">Play again</button>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="js/config.js"></script>
+  <script src="js/scoring.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
