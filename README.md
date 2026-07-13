@@ -45,63 +45,26 @@ npx serve .
 
 ```
 index.html          markup for all 5 screens (landing/guess/pinpoint/result/gameover)
-author.html         answer-authoring tool (find x/y for your photos)
 css/styles.css      dark "field manual / brass" theme + layout
 js/config.js        maps, scenery data, and all tunable knobs   <-- edit this
 js/scoring.js       distance + score math
 js/game.js          the state machine that drives the screens
-js/author.js        logic for author.html
+js/embers.js        ambient ember background effect
 assets/maps/*.png   the 6 map covers (clean copies of your originals)
-assets/scenery/     put your scenery photos here
+assets/scenery/     scenery photos, organised per map
 ```
 
-## Adding real scenery photos (the main next step)
+## Adding scenery photos
 
-Right now scenery is **placeholder** — each "photo" is just a zoomed crop of the
-map cover around the hidden answer, so the whole flow is playable today.
-
-### Easiest way: use the authoring tool
-
-Open **`author.html`** (e.g. http://localhost:8137/author.html, or double-click it):
-
-1. Pick the **map** the photo is from.
-2. Type a **scenery id** (e.g. `cliff-01`); the image path auto-fills to
-   `assets/scenery/cliff-01.jpg` (editable).
-3. **Click the map** where the photo was taken. Use a magnifier + the arrow keys
-   (Shift = bigger steps) to place the marker precisely.
-4. Click **"Add to list"** — the id auto-increments so you can rip through a whole
-   batch. Tick **"Show existing answers"** to see what's already placed.
-5. Hit **"Copy all"** and paste the block into the `scenery` array in `js/config.js`.
-6. Drop the actual photo files into `assets/scenery/` with matching names.
-
-### Or by hand, in `js/config.js`
-
-1. Drop your photo somewhere in the repo, e.g. `assets/scenery/cliff-hill-01.jpg`.
-2. Add an entry to the `scenery` array:
+Drop a photo into `assets/scenery/<map>/` and add an entry to the `scenery` array in
+`js/config.js`: its `mapId`, the answer location as `x`/`y` (fractions from `0` to `1`
+measured from the top-left of the map cover, so the centre is `0.5, 0.5`), and the
+`image` path (use forward slashes). Maps with no photos fall back to a placeholder crop,
+and each game randomly picks 5 scenes, preferring a different map per round.
 
 ```js
-{
-  id: 'cliff-hill-01',
-  mapId: 'cliff',                         // which map it's from (the answer)
-  x: 0.62, y: 0.48,                       // answer location on that map, see below
-  image: 'assets/scenery/cliff-hill-01.jpg'
-}
+{ id: 'cliff-01', mapId: 'cliff', x: 0.62, y: 0.48, image: 'assets/scenery/cliff/cliff-01.jpg' },
 ```
-
-When `image` is set, that photo is shown instead of the placeholder crop.
-`x` and `y` stay as the correct answer. You can add as many entries per map as you
-like — each game randomly picks 5 (preferring a different map each round).
-
-### The (x, y) coordinate system
-
-`x` and `y` are **fractions from 0 to 1, measured from the top-left corner** of the
-map cover image:
-
-- `x = 0` left edge → `x = 1` right edge
-- `y = 0` top edge → `y = 1` bottom edge
-- so map centre is `x: 0.5, y: 0.5`
-
-`author.html` reads these off a click for you, so you rarely need to eyeball them.
 
 ## Things you may want to adjust (all in `js/config.js`)
 
