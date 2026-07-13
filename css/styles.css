@@ -31,6 +31,10 @@
 
 * { box-sizing: border-box; }
 
+/* The [hidden] attribute must always win over class rules that set `display`
+   (e.g. .scenery__error sets display:grid, which otherwise overrides it). */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {
@@ -162,6 +166,14 @@ body[data-screen="gameover"] .screen[data-for="gameover"] { display: block; }
   background: rgba(10,13,16,.72);
   border: 1px solid var(--line);
   padding: 5px 10px; border-radius: 999px;
+}
+.scenery__error {
+  position: absolute; inset: 0; border-radius: var(--radius);
+  display: grid; place-items: center; text-align: center; padding: 24px;
+  background: rgba(10,13,16,.93); border: 1px solid var(--red);
+  color: #f2b8b2; font-size: 14px; line-height: 1.5;
+  white-space: pre-wrap; word-break: break-all;
+  font-family: "Cascadia Code", Consolas, monospace;
 }
 .picker__title {
   font-size: 15px; text-transform: uppercase; letter-spacing: 1.5px;

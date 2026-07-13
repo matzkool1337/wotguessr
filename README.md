@@ -45,18 +45,36 @@ npx serve .
 
 ```
 index.html          markup for all 5 screens (landing/guess/pinpoint/result/gameover)
+author.html         answer-authoring tool (find x/y for your photos)
 css/styles.css      dark "field manual / brass" theme + layout
 js/config.js        maps, scenery data, and all tunable knobs   <-- edit this
 js/scoring.js       distance + score math
 js/game.js          the state machine that drives the screens
+js/author.js        logic for author.html
 assets/maps/*.png   the 6 map covers (clean copies of your originals)
+assets/scenery/     put your scenery photos here
 ```
 
 ## Adding real scenery photos (the main next step)
 
 Right now scenery is **placeholder** — each "photo" is just a zoomed crop of the
-map cover around the hidden answer, so the whole flow is playable today. To use
-real screenshots, edit **`js/config.js`**:
+map cover around the hidden answer, so the whole flow is playable today.
+
+### Easiest way: use the authoring tool
+
+Open **`author.html`** (e.g. http://localhost:8137/author.html, or double-click it):
+
+1. Pick the **map** the photo is from.
+2. Type a **scenery id** (e.g. `cliff-01`); the image path auto-fills to
+   `assets/scenery/cliff-01.jpg` (editable).
+3. **Click the map** where the photo was taken. Use a magnifier + the arrow keys
+   (Shift = bigger steps) to place the marker precisely.
+4. Click **"Add to list"** — the id auto-increments so you can rip through a whole
+   batch. Tick **"Show existing answers"** to see what's already placed.
+5. Hit **"Copy all"** and paste the block into the `scenery` array in `js/config.js`.
+6. Drop the actual photo files into `assets/scenery/` with matching names.
+
+### Or by hand, in `js/config.js`
 
 1. Drop your photo somewhere in the repo, e.g. `assets/scenery/cliff-hill-01.jpg`.
 2. Add an entry to the `scenery` array:
@@ -83,8 +101,7 @@ map cover image:
 - `y = 0` top edge → `y = 1` bottom edge
 - so map centre is `x: 0.5, y: 0.5`
 
-(If you'd like, I can add a small **"answer authoring" page** where you click a map
-and it prints the exact `x, y` and a ready-to-paste config entry — just ask.)
+`author.html` reads these off a click for you, so you rarely need to eyeball them.
 
 ## Things you may want to adjust (all in `js/config.js`)
 

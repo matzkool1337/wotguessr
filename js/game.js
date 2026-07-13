@@ -56,24 +56,34 @@
    * Round setup
    * ------------------------------------------------------------------ */
   function buildRounds() {
-    // Prefer a distinct map per round for variety; fall back to repeats if the
-    // scenery pool is small. One random scenery is chosen per selected map.
-    var maps = shuffle(cfg.maps);
+    // Group the available scenery by map (maps without photos are simply absent).
+    var byMap = {};
+    cfg.scenery.forEach(function (s) { (byMap[s.mapId] || (byMap[s.mapId] = [])).push(s); });
+
     var chosen = [];
-    var count = Math.min(cfg.rounds, maps.length);
+    var used = {};
 
-    for (var i = 0; i < count; i++) {
-      var map = maps[i];
-      var pool = cfg.scenery.filter(function (s) { return s.mapId === map.id; });
-      if (!pool.length) continue;
-      chosen.push({ scenery: pool[Math.floor(Math.random() * pool.length)], map: map });
-    }
+    // Pass 1 — one distinct map per round for variety (random scene from each).
+    shuffle(Object.keys(byMap)).forEach(function (mapId) {
+      if (chosen.length >= cfg.rounds) return;
+      var pick = shuffle(byMap[mapId])[0];
+      used[pick.id] = true;
+      chosen.push({ scenery: pick, map: WG.mapById[mapId] });
+    });
 
-    // If we still need more rounds than distinct maps, top up from the full pool.
-    while (chosen.length < cfg.rounds) {
-      var s = cfg.scenery[Math.floor(Math.random() * cfg.scenery.length)];
+    // Pass 2 — fill remaining rounds with other unused scenes (no repeats yet).
+    shuffle(cfg.scenery).forEach(function (s) {
+      if (chosen.length >= cfg.rounds || used[s.id]) return;
+      used[s.id] = true;
       chosen.push({ scenery: s, map: WG.mapById[s.mapId] });
+    });
+
+    // Pass 3 — only if there are fewer total scenes than rounds, allow repeats.
+    while (chosen.length < cfg.rounds && cfg.scenery.length) {
+      var s2 = cfg.scenery[Math.floor(Math.random() * cfg.scenery.length)];
+      chosen.push({ scenery: s2, map: WG.mapById[s2.mapId] });
     }
+
     return shuffle(chosen).slice(0, cfg.rounds);
   }
 
@@ -109,15 +119,65 @@
       box.style.backgroundImage = 'url("' + scenery.image + '")';
       box.style.backgroundSize = 'cover';
       box.style.backgroundPosition = 'center';
+      box.dataset.src = scenery.image;
       el.sceneryDummyTag.hidden = true;
+      loadAndTune(scenery.image);
     } else {
       // Dummy: zoom into the map cover around the hidden answer point.
       var z = cfg.dummyZoom;
       box.style.backgroundImage = 'url("' + map.image + '")';
       box.style.backgroundSize = (z * 100) + '%';
       box.style.backgroundPosition = bgPos(scenery.x, z) + '% ' + bgPos(scenery.y, z) + '%';
+      box.style.filter = '';
+      box.dataset.src = '';
       el.sceneryDummyTag.hidden = false;
+      hideSceneryError();
     }
+  }
+
+  function hideSceneryError() { if (el.sceneryError) el.sceneryError.hidden = true; }
+
+  /* Load the photo once to (a) flag a missing/broken path and (b) auto-normalise
+   * brightness so dark in-game screenshots stay readable. Result is cached. */
+  var toneCache = {}; // image src -> css filter string
+  function loadAndTune(src) {
+    hideSceneryError();
+    if (toneCache[src] != null) { el.sceneryImage.style.filter = toneCache[src]; return; }
+    el.sceneryImage.style.filter = ''; // neutral until measured
+    var img = new Image();
+    img.onload = function () {
+      var filter = toneFilter(measureLuminance(img));
+      toneCache[src] = filter;
+      if (el.sceneryImage.dataset.src === src) el.sceneryImage.style.filter = filter;
+    };
+    img.onerror = function () {
+      if (!el.sceneryError) return;
+      el.sceneryError.textContent = '⚠ Image not found — check the path in config.js:\n' + src;
+      el.sceneryError.hidden = false;
+    };
+    img.src = src;
+  }
+
+  /* Average perceived luminance (0–255), or null if pixels can't be read. */
+  function measureLuminance(img) {
+    try {
+      var c = document.createElement('canvas'), w = c.width = 120, h = c.height = 68;
+      var ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      var d = ctx.getImageData(0, 0, w, h).data, sum = 0, n = 0;
+      for (var i = 0; i < d.length; i += 4) { sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]; n++; }
+      return sum / n;
+    } catch (e) {
+      return null; // tainted canvas (e.g. file://) — fall back to a flat lift
+    }
+  }
+
+  function toneFilter(avgLum) {
+    var t = cfg.sceneryTone;
+    var boost = (avgLum == null)
+      ? t.fallbackBoost
+      : Math.max(1, Math.min(t.maxBoost, t.targetLuminance / avgLum));
+    return 'brightness(' + boost.toFixed(2) + ') contrast(' + t.contrast + ') saturate(' + t.saturate + ')';
   }
 
   function renderMapPicker() {
@@ -319,6 +379,7 @@
   function cacheDom() {
     el.sceneryImage = $('scenery-image');
     el.sceneryDummyTag = $('scenery-dummy-tag');
+    el.sceneryError = $('scenery-error');
     el.mapGrid = $('map-grid');
 
     el.pinpointTitle = $('pinpoint-title');
