@@ -3,10 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WoT GeoGuessr</title>
+  <title>WoTGuessr — GeoGuessr for World of Tanks</title>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body data-screen="landing">
+
+  <!-- Animated ember background (drawn behind everything) -->
+  <canvas id="embers" aria-hidden="true"></canvas>
 
   <!-- Top bar / HUD -->
   <header class="hud">
@@ -32,7 +35,7 @@
     <!-- ============ LANDING ============ -->
     <section class="screen screen--landing" data-for="landing">
       <div class="landing">
-        <h1 class="landing__title">Which map is this?</h1>
+        <h1 class="landing__brand">WoT<span>Guessr</span></h1>
         <p class="landing__lead">
           A GeoGuessr for <strong>World of Tanks</strong>. You get a scene from
           somewhere on one of six maps. Guess the map — and if you're right,
@@ -44,7 +47,7 @@
           <li><span>3</span> Drop your marker</li>
         </ol>
         <button class="btn btn--primary btn--lg" id="start-game" type="button">Start game</button>
-        <p class="landing__note">6 maps · 5 rounds · currently using placeholder scenery</p>
+        <p class="landing__note">6 maps · 5 rounds per game</p>
       </div>
     </section>
 
@@ -110,7 +113,7 @@
     <!-- ============ GAME OVER ============ -->
     <section class="screen screen--gameover" data-for="gameover">
       <div class="gameover">
-        <h2 class="gameover__title">Game over</h2>
+        <h2 class="gameover__title">Round Summary</h2>
         <div class="gameover__score">
           <span id="final-score">0</span><small id="final-score-max">/ 25000</small>
         </div>
@@ -124,5 +127,6 @@
   <script src="js/config.js"></script>
   <script src="js/scoring.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/embers.js"></script>
 </body>
 </html>

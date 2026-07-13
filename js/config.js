@@ -22,12 +22,6 @@ WG.config = {
    * one by cropping into the map cover around the answer location. */
   dummyZoom: 3.4,
 
-  /* Auto-brightness for scenery photos. Dark in-game screenshots get lifted
-   * toward `targetLuminance` (0–255); already-bright shots are left alone.
-   * `fallbackBoost` is a flat lift used when pixels can't be measured
-   * (e.g. opening index.html via file:// taints the canvas). All tunable. */
-  sceneryTone: { targetLuminance: 125, maxBoost: 2.2, contrast: 1.06, saturate: 1.05, fallbackBoost: 1.25 },
-
   /*
    * The 6 maps. `sizeMeters` is the real in-game map edge length and is only
    * used to translate a guess distance into metres for display.

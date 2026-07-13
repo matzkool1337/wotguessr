@@ -115,13 +115,14 @@
     var box = el.sceneryImage;
 
     if (scenery.image) {
-      // Real photo supplied.
+      // Real photo, shown at its native tone (no brightening/saturation).
       box.style.backgroundImage = 'url("' + scenery.image + '")';
       box.style.backgroundSize = 'cover';
       box.style.backgroundPosition = 'center';
+      box.style.filter = '';
       box.dataset.src = scenery.image;
       el.sceneryDummyTag.hidden = true;
-      loadAndTune(scenery.image);
+      verifyImage(scenery.image);
     } else {
       // Dummy: zoom into the map cover around the hidden answer point.
       var z = cfg.dummyZoom;
@@ -137,47 +138,16 @@
 
   function hideSceneryError() { if (el.sceneryError) el.sceneryError.hidden = true; }
 
-  /* Load the photo once to (a) flag a missing/broken path and (b) auto-normalise
-   * brightness so dark in-game screenshots stay readable. Result is cached. */
-  var toneCache = {}; // image src -> css filter string
-  function loadAndTune(src) {
+  /* Load the photo once just to flag a missing/broken path. */
+  function verifyImage(src) {
     hideSceneryError();
-    if (toneCache[src] != null) { el.sceneryImage.style.filter = toneCache[src]; return; }
-    el.sceneryImage.style.filter = ''; // neutral until measured
-    var img = new Image();
-    img.onload = function () {
-      var filter = toneFilter(measureLuminance(img));
-      toneCache[src] = filter;
-      if (el.sceneryImage.dataset.src === src) el.sceneryImage.style.filter = filter;
-    };
-    img.onerror = function () {
-      if (!el.sceneryError) return;
+    var probe = new Image();
+    probe.onerror = function () {
+      if (!el.sceneryError || el.sceneryImage.dataset.src !== src) return;
       el.sceneryError.textContent = '⚠ Image not found — check the path in config.js:\n' + src;
       el.sceneryError.hidden = false;
     };
-    img.src = src;
-  }
-
-  /* Average perceived luminance (0–255), or null if pixels can't be read. */
-  function measureLuminance(img) {
-    try {
-      var c = document.createElement('canvas'), w = c.width = 120, h = c.height = 68;
-      var ctx = c.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      var d = ctx.getImageData(0, 0, w, h).data, sum = 0, n = 0;
-      for (var i = 0; i < d.length; i += 4) { sum += 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]; n++; }
-      return sum / n;
-    } catch (e) {
-      return null; // tainted canvas (e.g. file://) — fall back to a flat lift
-    }
-  }
-
-  function toneFilter(avgLum) {
-    var t = cfg.sceneryTone;
-    var boost = (avgLum == null)
-      ? t.fallbackBoost
-      : Math.max(1, Math.min(t.maxBoost, t.targetLuminance / avgLum));
-    return 'brightness(' + boost.toFixed(2) + ') contrast(' + t.contrast + ') saturate(' + t.saturate + ')';
+    probe.src = src;
   }
 
   function renderMapPicker() {
@@ -343,26 +313,96 @@
 
     el.breakdown.innerHTML = '';
     state.results.forEach(function (r, i) {
-      var row = document.createElement('div');
-      row.className = 'breakdown__row';
-
-      var detail;
-      if (!r.mapCorrect) {
-        detail = 'Wrong map (picked ' + (r.pickedMap ? r.pickedMap.name : '—') + ')';
-      } else {
-        detail = Math.round(r.distMeters) + ' m away';
-      }
-
-      row.innerHTML =
-        '<span class="breakdown__idx">' + (i + 1) + '</span>' +
-        '<span class="breakdown__map">' + r.correctMap.name + '</span>' +
-        '<span class="breakdown__detail">' + detail + '</span>' +
-        '<span class="breakdown__score">' + r.score + '</span>';
-      el.breakdown.appendChild(row);
+      el.breakdown.appendChild(buildSummaryRow(r, i));
     });
 
     updateHud();
     showScreen('gameover');
+  }
+
+  /* Crop rectangle (normalised) that frames the round's guess + actual points. */
+  function cropView(r) {
+    var pts = [{ x: r.scenery.x, y: r.scenery.y }];
+    if (r.guess) pts.push({ x: r.guess.x, y: r.guess.y });
+    var xs = pts.map(function (p) { return p.x; });
+    var ys = pts.map(function (p) { return p.y; });
+    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
+    var minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
+    var span = Math.max(maxX - minX, maxY - minY);
+    var S = clamp(span * 2.4 + 0.06, 0.16, 1);        // crop side: padding + a minimum zoom
+    var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    return { S: S, x0: clamp(cx - S / 2, 0, 1 - S), y0: clamp(cy - S / 2, 0, 1 - S) };
+  }
+
+  /* A small cropped map with the round's guess + actual markers (+ a connector). */
+  function buildSummaryThumb(r) {
+    var v = cropView(r);
+    var thumb = document.createElement('div');
+    thumb.className = 'sumrow__thumb';
+    thumb.style.backgroundImage = 'url("' + r.correctMap.image + '")';
+    thumb.style.backgroundSize = (100 / v.S) + '% ' + (100 / v.S) + '%';
+    thumb.style.backgroundPosition = (v.S >= 1) ? '0% 0%'
+      : (v.x0 / (1 - v.S) * 100) + '% ' + (v.y0 / (1 - v.S) * 100) + '%';
+
+    function toPct(p) { return { x: (p.x - v.x0) / v.S * 100, y: (p.y - v.y0) / v.S * 100 }; }
+    function addMarker(cls, p) {
+      var pc = toPct(p);
+      var m = document.createElement('div');
+      m.className = 'tmarker ' + cls;
+      m.style.left = pc.x + '%';
+      m.style.top = pc.y + '%';
+      thumb.appendChild(m);
+    }
+
+    var actual = { x: r.scenery.x, y: r.scenery.y };
+    if (r.guess) {
+      var g = toPct(r.guess), a = toPct(actual), NS = 'http://www.w3.org/2000/svg';
+      var svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class', 'tline');
+      svg.setAttribute('viewBox', '0 0 100 100');
+      svg.setAttribute('preserveAspectRatio', 'none');
+      var ln = document.createElementNS(NS, 'line');
+      ln.setAttribute('x1', g.x); ln.setAttribute('y1', g.y);
+      ln.setAttribute('x2', a.x); ln.setAttribute('y2', a.y);
+      svg.appendChild(ln);
+      thumb.appendChild(svg);
+      addMarker('tmarker--guess', r.guess);
+    }
+    addMarker('tmarker--actual', actual);
+    return thumb;
+  }
+
+  function buildSummaryRow(r, i) {
+    var row = document.createElement('div');
+    row.className = 'sumrow';
+
+    var thumb = buildSummaryThumb(r);
+    var num = document.createElement('span');
+    num.className = 'sumrow__num';
+    num.textContent = i + 1;
+    thumb.appendChild(num);
+
+    var info = document.createElement('div');
+    info.className = 'sumrow__info';
+    var name = document.createElement('div');
+    name.className = 'sumrow__map';
+    name.textContent = r.correctMap.name;
+    var detail = document.createElement('div');
+    detail.className = 'sumrow__detail' + (r.mapCorrect ? '' : ' sumrow__detail--bad');
+    detail.textContent = r.mapCorrect
+      ? (Math.round(r.distMeters) + ' m away')
+      : ('Wrong map — picked ' + (r.pickedMap ? r.pickedMap.name : '—'));
+    info.appendChild(name);
+    info.appendChild(detail);
+
+    var score = document.createElement('div');
+    score.className = 'sumrow__score';
+    score.textContent = r.score;
+
+    row.appendChild(thumb);
+    row.appendChild(info);
+    row.appendChild(score);
+    return row;
   }
 
   /* ------------------------------------------------------------------ *
