@@ -1,0 +1,9 @@
+# Local-only answer-authoring tool — kept out of the published repo/site.
+# These files still live on disk so you can author scenery locally; they are
+# simply never committed. (Restore/keep them; do not `git add` them.)
+/author.html
+/js/author.js
+
+# OS / editor cruft
+Thumbs.db
+.DS_Store
