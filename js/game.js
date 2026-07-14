@@ -20,9 +20,12 @@
     rounds: [],        // [{ scenery, map }]
     roundIndex: 0,
     results: [],       // finished round results
+    hardMode: false,   // "blink" mode: the scene is shown for ~1s only
     // per-round working data:
     selectedMapId: null,
     guess: null,       // { x, y } normalised, or null
+    _hardTimers: [],   // pending countdown timeouts
+    _hardRAF: 0,       // active reveal animation-frame id
   };
 
   var el = {}; // cached DOM references
@@ -87,7 +90,9 @@
     return shuffle(chosen).slice(0, cfg.rounds);
   }
 
-  function startGame() {
+  function startGame(hard) {
+    state.hardMode = !!hard;
+    document.body.setAttribute('data-mode', state.hardMode ? 'hard' : 'normal');
     state.rounds = buildRounds();
     state.roundIndex = 0;
     state.results = [];
@@ -97,12 +102,14 @@
   function currentRound() { return state.rounds[state.roundIndex]; }
 
   function loadRound() {
+    clearHardTimers();
     state.selectedMapId = null;
     state.guess = null;
 
     var round = currentRound();
     renderScenery(round.scenery);
     renderMapPicker();
+    setupHardMode(round.scenery);
     updateHud();
     showScreen('guess');
   }
@@ -148,6 +155,85 @@
       el.sceneryError.hidden = false;
     };
     probe.src = src;
+  }
+
+  /* ------------------------------------------------------------------ *
+   * Hard ("blink") mode: black frame -> Ready? -> 3·2·1·Go! -> ~1s flash
+   * ------------------------------------------------------------------ */
+  var _decoded = {}; // src -> Promise that resolves once the photo is decoded
+  function preloadImage(src) {
+    if (!src) return Promise.resolve();
+    if (_decoded[src]) return _decoded[src];
+    var img = new Image();
+    img.src = src;
+    var done = function () { return img; };
+    _decoded[src] = (img.decode ? img.decode() : Promise.resolve()).then(done, done);
+    return _decoded[src];
+  }
+
+  function clearHardTimers() {
+    state._hardTimers.forEach(clearTimeout);
+    state._hardTimers = [];
+    if (state._hardRAF) { cancelAnimationFrame(state._hardRAF); state._hardRAF = 0; }
+  }
+
+  function setupHardMode(scenery) {
+    if (!state.hardMode) {
+      el.sceneryBlackout.hidden = true;
+      el.sceneryHud.hidden = true;
+      el.picker.classList.remove('picker--locked');
+      return;
+    }
+    // Cover the (already-set) scene with black, offer "Ready?", and start
+    // decoding the photo now so the later flash is instant.
+    el.sceneryBlackout.hidden = false;
+    el.sceneryHud.hidden = false;
+    el.readyBtn.hidden = false;
+    el.sceneryCount.hidden = true;
+    el.picker.classList.add('picker--locked');
+    preloadImage(scenery.image);
+  }
+
+  function onReady() {
+    if (!state.hardMode) return;
+    el.readyBtn.hidden = true;
+    runCountdown();
+  }
+
+  function runCountdown() {
+    el.sceneryCount.hidden = false;
+    var steps = [{ t: '3', d: 1000 }, { t: '2', d: 1000 }, { t: '1', d: 1000 }, { t: 'Go!', d: 600 }];
+    var i = 0;
+    (function next() {
+      if (i >= steps.length) { revealScene(); return; }
+      var s = steps[i++];
+      el.sceneryCount.textContent = s.t;
+      el.sceneryCount.classList.remove('pop');
+      void el.sceneryCount.offsetWidth; // restart the pop animation
+      el.sceneryCount.classList.add('pop');
+      state._hardTimers.push(setTimeout(next, s.d));
+    })();
+  }
+
+  function revealScene() {
+    el.sceneryCount.hidden = true;
+    var scenery = currentRound().scenery;
+    // Ensure the photo is fully decoded BEFORE uncovering, so the reveal is
+    // instant and never shown for less than intended even on a slow browser.
+    // Hide with setTimeout (not rAF): it fires reliably including in background
+    // tabs, and a 1000 ms timeout is never clamped below one second.
+    preloadImage(scenery.image).then(function () {
+      el.sceneryBlackout.hidden = true; // uncover — already decoded, so instant
+      state._hardTimers.push(setTimeout(function () {
+        el.sceneryBlackout.hidden = false; // black again after ~1s
+        endReveal();
+      }, 1000));
+    });
+  }
+
+  function endReveal() {
+    el.sceneryHud.hidden = true;
+    el.picker.classList.remove('picker--locked'); // now the player picks the map
   }
 
   function renderMapPicker() {
@@ -425,6 +511,11 @@
     el.sceneryImage = $('scenery-image');
     el.sceneryDummyTag = $('scenery-dummy-tag');
     el.sceneryError = $('scenery-error');
+    el.sceneryBlackout = $('scenery-blackout');
+    el.sceneryHud = $('scenery-hud');
+    el.readyBtn = $('ready-btn');
+    el.sceneryCount = $('scenery-count');
+    el.picker = document.querySelector('.picker');
     el.mapGrid = $('map-grid');
 
     el.pinpointTitle = $('pinpoint-title');
@@ -452,9 +543,15 @@
   }
 
   function bindEvents() {
-    $('start-game').addEventListener('click', startGame);
-    $('play-again').addEventListener('click', startGame);
-    $('new-game').addEventListener('click', function () { showScreen('landing'); });
+    $('start-game').addEventListener('click', function () { startGame(false); });
+    $('start-hard').addEventListener('click', function () { startGame(true); });
+    $('play-again').addEventListener('click', function () { startGame(state.hardMode); });
+    $('new-game').addEventListener('click', function () {
+      clearHardTimers();
+      document.body.setAttribute('data-mode', 'normal');
+      showScreen('landing');
+    });
+    el.readyBtn.addEventListener('click', onReady);
     el.pinpointStage.addEventListener('click', onStageClick);
     el.submitGuess.addEventListener('click', onSubmitGuess);
     el.nextRound.addEventListener('click', onNextRound);
@@ -463,6 +560,7 @@
   function init() {
     cacheDom();
     bindEvents();
+    document.body.setAttribute('data-mode', 'normal');
     updateHud();
     showScreen('landing');
   }

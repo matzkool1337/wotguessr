@@ -44,7 +44,13 @@
           <li><span>2</span> Pick the map</li>
           <li><span>3</span> Drop your marker</li>
         </ol>
-        <button class="btn btn--primary btn--lg" id="start-game" type="button">Start game</button>
+        <div class="landing__actions">
+          <button class="btn btn--primary btn--lg" id="start-game" type="button">Start game</button>
+          <div class="landing__hard">
+            <button class="btn btn--danger btn--lg" id="start-hard" type="button">💀 Hard Mode 💀</button>
+            <p class="landing__note landing__note--hard">Blink mode · the scene flashes for one second</p>
+          </div>
+        </div>
         <p class="landing__note">6 maps · 5 rounds per game</p>
       </div>
     </section>
@@ -54,7 +60,12 @@
       <div class="guess">
         <figure class="scenery">
           <div class="scenery__image" id="scenery-image"></div>
+          <div class="scenery__blackout" id="scenery-blackout" hidden></div>
           <div class="scenery__error" id="scenery-error" hidden></div>
+          <div class="scenery__hud" id="scenery-hud" hidden>
+            <button class="btn btn--primary" id="ready-btn" type="button">Ready?</button>
+            <div class="scenery__count" id="scenery-count" hidden></div>
+          </div>
           <figcaption class="scenery__tag" id="scenery-dummy-tag">
             Placeholder scenery · real photos coming later
           </figcaption>

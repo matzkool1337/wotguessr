@@ -16,6 +16,7 @@
 
   --gold:   #d9a441;
   --gold-2: #f2ca6b;
+  --gold-deep: var(--gold-deep);
   --red:    #cf4b3e;
   --green:  #5aa86a;
 
@@ -118,10 +119,10 @@ body[data-screen="gameover"] .screen[data-for="gameover"] { display: block; }
 .btn:active { transform: translateY(1px); }
 .btn--primary {
   background: linear-gradient(180deg, var(--gold-2), var(--gold));
-  box-shadow: 0 4px 0 #9c7521, 0 8px 18px rgba(217,164,65,.30), inset 0 1px 0 rgba(255,255,255,.45);
+  box-shadow: 0 4px 0 var(--gold-deep), 0 8px 18px rgba(217,164,65,.30), inset 0 1px 0 rgba(255,255,255,.45);
 }
-.btn--primary:hover { filter: brightness(1.06); box-shadow: 0 4px 0 #9c7521, 0 10px 24px rgba(217,164,65,.44), inset 0 1px 0 rgba(255,255,255,.5); }
-.btn--primary:active { box-shadow: 0 1px 0 #9c7521, 0 4px 12px rgba(217,164,65,.30), inset 0 1px 0 rgba(255,255,255,.4); }
+.btn--primary:hover { filter: brightness(1.06); box-shadow: 0 4px 0 var(--gold-deep), 0 10px 24px rgba(217,164,65,.44), inset 0 1px 0 rgba(255,255,255,.5); }
+.btn--primary:active { box-shadow: 0 1px 0 var(--gold-deep), 0 4px 12px rgba(217,164,65,.30), inset 0 1px 0 rgba(255,255,255,.4); }
 .btn--primary:disabled {
   background: #3a434c; color: #7d8891; cursor: not-allowed; box-shadow: none; filter: none; transform: none;
 }
@@ -131,6 +132,26 @@ body[data-screen="gameover"] .screen[data-for="gameover"] { display: block; }
 .btn--ghost:hover { border-color: var(--gold); color: var(--gold-2); }
 .btn--lg { padding: 15px 34px; font-size: 15px; }
 .btn--sm { padding: 8px 15px; font-size: 12px; letter-spacing: .8px; }
+.btn--danger {
+  background: linear-gradient(180deg, #e5675a, #cf4b3e);
+  color: #fff;
+  box-shadow: 0 4px 0 #7f2c22, 0 8px 18px rgba(207,75,62,.30), inset 0 1px 0 rgba(255,255,255,.32);
+}
+.btn--danger:hover { filter: brightness(1.07); box-shadow: 0 4px 0 #7f2c22, 0 10px 24px rgba(207,75,62,.46), inset 0 1px 0 rgba(255,255,255,.38); }
+.btn--danger:active { box-shadow: 0 1px 0 #7f2c22, 0 4px 12px rgba(207,75,62,.30), inset 0 1px 0 rgba(255,255,255,.3); }
+
+/* ---- Hard mode: swap the gold accent for red ---- */
+body[data-mode="hard"] {
+  --gold: #cf4b3e;
+  --gold-2: #ef6d5f;
+  --gold-deep: #7f2c22;
+}
+/* keep the "your guess" cue gold so it stays distinct from the red answer marker */
+body[data-mode="hard"] .marker--guess { background: #d9a441; box-shadow: 0 0 0 2px #f2ca6b, 0 3px 8px rgba(0,0,0,.6); }
+body[data-mode="hard"] .tmarker--guess { background: #d9a441; box-shadow: 0 0 0 1.5px #f2ca6b; }
+body[data-mode="hard"] .legend--guess::before { background: #d9a441; box-shadow: 0 0 0 2px #f2ca6b; }
+body[data-mode="hard"] .map-stage__line line,
+body[data-mode="hard"] .tline line { stroke: #f2ca6b; }
 
 /* --------------------------------------------------------------- landing */
 .landing { max-width: 640px; margin: clamp(10px, 7vh, 70px) auto 0; text-align: center; }
@@ -162,6 +183,9 @@ body[data-screen="gameover"] .screen[data-for="gameover"] { display: block; }
   background: var(--gold); color: #1a1407; font-weight: 800; font-size: 12px;
 }
 .landing__note { margin-top: 20px; color: var(--muted); font-size: 13px; letter-spacing: .3px; }
+.landing__actions { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.landing__hard { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.landing__note--hard { margin: 0; }
 
 /* ----------------------------------------------------------------- guess */
 .guess { display: grid; gap: clamp(18px, 3vw, 30px); }
@@ -184,13 +208,35 @@ body[data-screen="gameover"] .screen[data-for="gameover"] { display: block; }
   padding: 5px 10px; border-radius: 3px;
 }
 .scenery__error {
-  position: absolute; inset: 0; border-radius: var(--radius);
+  position: absolute; inset: 0; border-radius: var(--radius); z-index: 4;
   display: grid; place-items: center; text-align: center; padding: 24px;
   background: rgba(10,13,16,.93); border: 1px solid var(--red);
   color: #f2b8b2; font-size: 14px; line-height: 1.5;
   white-space: pre-wrap; word-break: break-all;
   font-family: "Cascadia Code", Consolas, monospace;
 }
+/* hard-mode: black cover + Ready/countdown over the scene frame */
+.scenery__blackout {
+  position: absolute; inset: 0; z-index: 2;
+  background: #000; border-radius: var(--radius);
+}
+.scenery__hud {
+  position: absolute; inset: 0; z-index: 3;
+  display: grid; place-items: center; pointer-events: none;
+}
+.scenery__hud .btn { pointer-events: auto; }
+.scenery__count {
+  font-size: clamp(52px, 13vw, 104px); font-weight: 800; line-height: 1;
+  color: var(--gold-2); text-shadow: 0 6px 30px rgba(0,0,0,.7);
+  font-variant-numeric: tabular-nums;
+}
+.scenery__count.pop { animation: countPop .45s cubic-bezier(.2,.85,.3,1.15); }
+@keyframes countPop {
+  0%   { transform: scale(.4); opacity: 0; }
+  45%  { opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.picker--locked { pointer-events: none; opacity: .45; transition: opacity .3s ease; }
 .picker__title {
   font-size: 15px; text-transform: uppercase; letter-spacing: 1.5px;
   color: var(--muted); margin: 0 0 14px; text-align: center; font-weight: 700;
