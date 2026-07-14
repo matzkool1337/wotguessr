@@ -320,33 +320,38 @@
     showScreen('gameover');
   }
 
-  /* Crop rectangle (normalised) that frames the round's guess + actual points. */
+  /* Crop rectangle (normalised) for a summary thumbnail. Always centred on the
+   * ACTUAL answer and always zoomed in; the zoom eases out with a worse guess
+   * but is capped so it never shows the whole map. A far guess is handled by
+   * clamping its marker to the thumbnail edge (see buildSummaryThumb). */
   function cropView(r) {
-    var pts = [{ x: r.scenery.x, y: r.scenery.y }];
-    if (r.guess) pts.push({ x: r.guess.x, y: r.guess.y });
-    var xs = pts.map(function (p) { return p.x; });
-    var ys = pts.map(function (p) { return p.y; });
-    var minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
-    var minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
-    var span = Math.max(maxX - minX, maxY - minY);
-    var S = clamp(span * 2.4 + 0.06, 0.16, 1);        // crop side: padding + a minimum zoom
-    var cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
-    return { S: S, x0: clamp(cx - S / 2, 0, 1 - S), y0: clamp(cy - S / 2, 0, 1 - S) };
+    var ax = r.scenery.x, ay = r.scenery.y;
+    var S;
+    if (r.guess) {
+      var dist = Math.hypot(r.guess.x - ax, r.guess.y - ay);
+      S = clamp(dist * 2.2 + 0.12, 0.16, 0.55);   // 0.16 (tight) … 0.55 (~1.8x, still zoomed)
+    } else {
+      S = 0.28;                                    // wrong-map round: modest fixed zoom on the answer
+    }
+    return { S: S, x0: clamp(ax - S / 2, 0, 1 - S), y0: clamp(ay - S / 2, 0, 1 - S) };
   }
 
-  /* A small cropped map with the round's guess + actual markers (+ a connector). */
+  /* A small cropped map with the round's guess + actual markers (+ a connector).
+   * The actual spot is always in view; a far-off guess is pinned to the edge. */
   function buildSummaryThumb(r) {
     var v = cropView(r);
     var thumb = document.createElement('div');
     thumb.className = 'sumrow__thumb';
     thumb.style.backgroundImage = 'url("' + r.correctMap.image + '")';
     thumb.style.backgroundSize = (100 / v.S) + '% ' + (100 / v.S) + '%';
-    thumb.style.backgroundPosition = (v.S >= 1) ? '0% 0%'
-      : (v.x0 / (1 - v.S) * 100) + '% ' + (v.y0 / (1 - v.S) * 100) + '%';
+    thumb.style.backgroundPosition = (v.x0 / (1 - v.S) * 100) + '% ' + (v.y0 / (1 - v.S) * 100) + '%';
 
-    function toPct(p) { return { x: (p.x - v.x0) / v.S * 100, y: (p.y - v.y0) / v.S * 100 }; }
-    function addMarker(cls, p) {
-      var pc = toPct(p);
+    function clampPct(n) { return Math.max(4, Math.min(96, n)); }
+    function toPct(p, clampToEdge) {
+      var x = (p.x - v.x0) / v.S * 100, y = (p.y - v.y0) / v.S * 100;
+      return clampToEdge ? { x: clampPct(x), y: clampPct(y) } : { x: x, y: y };
+    }
+    function addMarker(cls, pc) {
       var m = document.createElement('div');
       m.className = 'tmarker ' + cls;
       m.style.left = pc.x + '%';
@@ -354,19 +359,19 @@
       thumb.appendChild(m);
     }
 
-    var actual = { x: r.scenery.x, y: r.scenery.y };
+    var actual = toPct({ x: r.scenery.x, y: r.scenery.y }, false); // centred, always visible
     if (r.guess) {
-      var g = toPct(r.guess), a = toPct(actual), NS = 'http://www.w3.org/2000/svg';
+      var g = toPct(r.guess, true), NS = 'http://www.w3.org/2000/svg';
       var svg = document.createElementNS(NS, 'svg');
       svg.setAttribute('class', 'tline');
       svg.setAttribute('viewBox', '0 0 100 100');
       svg.setAttribute('preserveAspectRatio', 'none');
       var ln = document.createElementNS(NS, 'line');
       ln.setAttribute('x1', g.x); ln.setAttribute('y1', g.y);
-      ln.setAttribute('x2', a.x); ln.setAttribute('y2', a.y);
+      ln.setAttribute('x2', actual.x); ln.setAttribute('y2', actual.y);
       svg.appendChild(ln);
       thumb.appendChild(svg);
-      addMarker('tmarker--guess', r.guess);
+      addMarker('tmarker--guess', g);
     }
     addMarker('tmarker--actual', actual);
     return thumb;
